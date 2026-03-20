@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session, flash
+from flask import Flask, render_template, request, redirect, session, flash 
 import psycopg2
 import os
 from dotenv import load_dotenv
@@ -16,7 +16,9 @@ def get_conn():
         host=os.getenv("DB_HOST"),
         dbname=os.getenv("DB_NAME"),
         user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD")
+        password=os.getenv("DB_PASSWORD"),
+        port=5432,
+        connect_timeout=5
     )
 
 
@@ -25,7 +27,6 @@ def index():
     return render_template("index.html")
 
 
-# 🔥 예약 (동시성 + 참석자수 반영)
 @app.route("/reserve", methods=["POST"])
 def reserve():
     conn = get_conn()
@@ -34,7 +35,6 @@ def reserve():
             with conn.cursor() as cur:
 
                 date = request.form.get("date")
-
                 party_size = int(request.form.get("party_size", 1))
 
                 names = request.form.getlist("attendee_name")
@@ -42,11 +42,9 @@ def reserve():
 
                 attendees = [(n.strip(), c.strip()) for n, c in zip(names, contacts) if n.strip()]
 
-                # 🔥 검증
                 if len(attendees) != party_size:
                     return "참석자 수가 일치하지 않습니다.", 400
 
-                # 🔥 row lock
                 cur.execute("""
                     SELECT a.id
                     FROM attendees a
@@ -56,7 +54,6 @@ def reserve():
                     FOR UPDATE
                 """, (date,))
 
-                # 🔥 확정 인원 count
                 cur.execute("""
                     SELECT COUNT(*)
                     FROM attendees a
@@ -67,7 +64,6 @@ def reserve():
                 """, (date,))
                 confirmed = cur.fetchone()[0]
 
-                # 예약 생성
                 cur.execute("""
                     INSERT INTO reservations (reserver_name, reserver_contact, date, party_size)
                     VALUES (%s,%s,%s,%s)
@@ -80,7 +76,6 @@ def reserve():
                 ))
                 reservation_id = cur.fetchone()[0]
 
-                # 참석자 처리
                 for name, contact in attendees:
                     status = "confirmed" if confirmed < MAX_CAPACITY else "waiting"
                     if status == "confirmed":
@@ -97,7 +92,6 @@ def reserve():
         conn.close()
 
 
-# 🔹 예약 현황 (날짜 리스트)
 @app.route("/status")
 def status():
     conn = get_conn()
@@ -116,7 +110,6 @@ def status():
             """)
             rows = cur.fetchall()
 
-            # 🔥 구장 정보
             cur.execute("SELECT date, course_name, start_time FROM courses")
             course_rows = cur.fetchall()
 
@@ -125,11 +118,12 @@ def status():
     courses = {c[0]: (c[1], c[2]) for c in course_rows}
 
     return render_template(
-    "status.html",
-    rows=rows,
-    courses=courses,
-    max_capacity=MAX_CAPACITY
+        "status.html",
+        rows=rows,
+        courses=courses,
+        max_capacity=MAX_CAPACITY
     )
+
 
 @app.route("/result/<int:rid>")
 def result(rid):
@@ -149,10 +143,9 @@ def result(rid):
             rows = cur.fetchall()
 
     conn.close()
-
     return render_template("result.html", rows=rows)
 
-# 🔹 예약 상세 (읽기 전용)
+
 @app.route("/status/<date>")
 def status_detail(date):
     conn = get_conn()
@@ -178,7 +171,7 @@ def status_detail(date):
                  WHERE reservation_id IN (
                                             SELECT id FROM reservations WHERE date=%s
                                           )
-                """, (date,))
+            """, (date,))
             rows = cur.fetchall()
 
     conn.close()
@@ -195,7 +188,6 @@ def status_detail(date):
     )
 
 
-# 🔹 관리자 로그인
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
     if request.method == "POST":
@@ -217,14 +209,12 @@ def admin():
     return render_template("admin_login.html")
 
 
-# 🔹 로그아웃
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect("/")
 
 
-# 🔹 예약 관리 (날짜 리스트)
 @app.route("/manage")
 def manage():
     if "admin" not in session:
@@ -254,14 +244,13 @@ def manage():
     courses = {c[0]: (c[1], c[2]) for c in course_rows}
 
     return render_template(
-    "manage.html",
-    rows=rows,
-    courses=courses,
-    max_capacity=MAX_CAPACITY
-    )   
+        "manage.html",
+        rows=rows,
+        courses=courses,
+        max_capacity=MAX_CAPACITY
+    )
 
 
-# 🔹 날짜별 상세 (관리자)
 @app.route("/manage/<date>")
 def manage_detail(date):
     if "admin" not in session:
@@ -310,7 +299,6 @@ def manage_detail(date):
     )
 
 
-# 🔥 예약 취소 + 승격
 @app.route("/cancel/<int:id>")
 def cancel(id):
     if "admin" not in session:
@@ -359,7 +347,6 @@ def cancel(id):
     return redirect("/manage")
 
 
-# 🔹 예약 추가 (관리자)
 @app.route("/manage/add", methods=["GET", "POST"])
 def add_reservation():
     if "admin" not in session:
@@ -394,7 +381,6 @@ def add_reservation():
     return render_template("add_reservation.html")
 
 
-# 🔹 구장 관리
 @app.route("/courses", methods=["GET", "POST"])
 def courses():
     if "admin" not in session:
@@ -426,6 +412,7 @@ def courses():
     conn.close()
     return render_template("courses.html", rows=rows)
 
+
 @app.route("/my")
 def my():
     phone = request.args.get("phone")
@@ -445,5 +432,8 @@ def my():
     conn.close()
     return render_template("my.html", rows=rows)
 
+
+# 🔥🔥🔥 핵심 (Render용)
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
