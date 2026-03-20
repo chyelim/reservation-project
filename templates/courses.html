@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<body class="container mt-5" style="font-size:20px;">
+
+<h2>구장 관리</h2>
+
+<div class="mb-3">
+  <a href="/manage" class="btn btn-secondary">예약 관리로</a>
+</div>
+
+<form method="post" class="mb-4">
+  <input type="date" name="date" class="form-control mb-2">
+  <input type="text" name="course_name" placeholder="구장명" class="form-control mb-2">
+  <input type="time" name="start_time" class="form-control mb-2">
+  <button class="btn btn-primary w-100">저장</button>
+</form>
+
+<hr>
+
+<ul class="list-group">
+{% for r in rows %}
+<li class="list-group-item">
+  {{ r[0] }} - {{ r[1] }} - {{ r[2] }}
+</li>
+{% endfor %}
+</ul>
+
+</body>
+</html>

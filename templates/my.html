@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<body class="container mt-5">
+
+<h2>내 예약 조회</h2>
+
+<ul class="list-group">
+{% for date, name, status in rows %}
+<li class="list-group-item">
+  {{ date }} - {{ name }} -
+  {% if status=='confirmed' %}확정
+  {% elif status=='waiting' %}대기
+  {% else %}취소{% endif %}
+</li>
+{% endfor %}
+</ul>
+
+<a href="/" class="btn btn-secondary mt-3">뒤로</a>
+
+</body>
+</html>

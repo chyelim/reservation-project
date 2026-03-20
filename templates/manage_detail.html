@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>예약 상세</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body class="container mt-5" style="font-size:20px;">
+
+<h2>{{ date }} 예약 상세</h2>
+
+<a href="/manage" class="btn btn-secondary mb-3">뒤로</a>
+
+{% for r in reservations %}
+<div class="card mb-3">
+
+  <!-- 🔥 카드 헤더 (예약자 + 취소 버튼) -->
+  <div class="card-header d-flex justify-content-between align-items-center">
+
+    <div>
+      <strong>{{ r[1] }}</strong> / {{ r[2] }}
+    </div>
+
+    <div>
+      {% if r[3] %}
+        <span class="badge bg-danger">취소됨</span>
+      {% else %}
+        <a href="/cancel/{{ r[0] }}"
+           class="btn btn-danger btn-sm"
+           onclick="return confirm('정말 취소하시겠습니까?')">
+          취소
+        </a>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <!-- 🔥 참석자 리스트 -->
+  <ul class="list-group list-group-flush">
+    {% for name, contact, status, wait_order in attendees_map.get(r[0], []) %}
+    <li class="list-group-item d-flex justify-content-between">
+
+      <div>
+        {{ name }} / {{ contact }}
+      </div>
+
+      <div>
+        {% if status == 'confirmed' %}
+          <span class="badge bg-success">확정</span>
+        {% elif status == 'waiting' %}
+          <span class="badge bg-warning">
+            대기 {{ wait_order }}번
+          </span>
+        {% else %}
+          <span class="badge bg-secondary">취소</span>
+        {% endif %}
+      </div>
+
+    </li>
+    {% endfor %}
+  </ul>
+
+</div>
+{% endfor %}
+
+</body>
+</html>
